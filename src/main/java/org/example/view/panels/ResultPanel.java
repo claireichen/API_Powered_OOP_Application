@@ -16,27 +16,41 @@ public class ResultPanel extends JPanel {
 
     public ResultPanel() {
         setLayout(new BorderLayout());
-        tableModel = new DefaultTableModel(new Object[]{"Title", "Artist", "Album"}, 0);
+        tableModel = new DefaultTableModel(
+                new Object[] { "Title", "Artist", "Album" }, 0
+        );
         table = new JTable(tableModel);
-
         add(new JScrollPane(table), BorderLayout.CENTER);
     }
 
-    @SuppressWarnings("unchecked")
+    // Old API – keep for compatibility, delegate to setTracks
     public void updateResults(Object payload) {
-        tableModel.setRowCount(0);
-
         if (payload instanceof List<?> list) {
+            java.util.List<Track> tracks = new java.util.ArrayList<>();
             for (Object o : list) {
-                if (o instanceof Track track) {
-                    tableModel.addRow(new Object[]{
-                            track.getName(),
-                            track.getArtist(),
-                            track.getAlbum()
-                    });
+                if (o instanceof Track t) {
+                    tracks.add(t);
                 }
             }
+            setTracks(tracks);
+        } else {
+            setTracks(java.util.List.of());
+        }
+    }
+
+    // New API used by MainFrame
+    public void setTracks(java.util.List<Track> tracks) {
+        tableModel.setRowCount(0);
+        if (tracks == null) return;
+
+        for (Track t : tracks) {
+            tableModel.addRow(new Object[] {
+                    t.getName(),
+                    t.getArtist(),
+                    t.getAlbum()
+            });
         }
     }
 }
+
 

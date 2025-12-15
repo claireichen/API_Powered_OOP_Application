@@ -22,6 +22,7 @@ public class MainController extends MusicEventSource {
     private final AppModel model;
     private final MusicServiceFactory factory;
     private final SessionPersistenceService sessionService;
+    private javax.swing.SwingWorker<?, ?> currentWorker;
 
     public MainController(AppModel model, MusicServiceFactory factory, SessionPersistenceService sessionService) {
         this.model = model;
@@ -33,7 +34,7 @@ public class MainController extends MusicEventSource {
         RecommendationStrategy strategy = factory.createRecommendationStrategy(mode);
         fireEvent(MusicEvent.of(EventType.RECOMMENDATION_STARTED, null));
 
-        SwingWorker<List<Track>, Void> worker = new SwingWorker<>() {
+        currentWorker = new SwingWorker<List<Track>, Void>() {
             @Override
             protected List<Track> doInBackground() throws Exception {
                 return strategy.getRecommendations(query);
@@ -51,14 +52,14 @@ public class MainController extends MusicEventSource {
                 }
             }
         };
-        worker.execute();
+        currentWorker.execute();
     }
 
     public void requestGeneration(UserQuery query, GenerationMode mode) {
         MusicGenerationStrategy strategy = factory.createGenerationStrategy(mode);
         fireEvent(MusicEvent.of(EventType.GENERATION_STARTED, null));
 
-        SwingWorker<GenerationResult, Void> worker = new SwingWorker<>() {
+        currentWorker = new SwingWorker<GenerationResult, Void>() {
             @Override
             protected GenerationResult doInBackground() throws Exception {
                 return strategy.generate(query);
@@ -75,7 +76,7 @@ public class MainController extends MusicEventSource {
                 }
             }
         };
-        worker.execute();
+        currentWorker.execute();
     }
 
     public void saveCurrentSession(File file) {
@@ -132,5 +133,46 @@ public class MainController extends MusicEventSource {
             }
         };
         worker.execute();
+    }
+
+    // Called by MainFrame with the combo-box label
+    public void requestRecommendationsFromUI(UserQuery query, String modeLabel) {
+        MusicServiceFactory.RecommendationMode mode;
+
+        String normalized = modeLabel == null ? "" : modeLabel.toLowerCase();
+        switch (normalized) {
+            case "genre" -> mode = MusicServiceFactory.RecommendationMode.GENRE;
+            case "artist" -> mode = MusicServiceFactory.RecommendationMode.ARTIST;
+            case "mood"  -> mode = MusicServiceFactory.RecommendationMode.MOOD;
+            default -> mode = MusicServiceFactory.RecommendationMode.MOOD;
+        }
+
+        requestRecommendations(query, mode);
+    }
+
+    public void requestGenerationFromUI(UserQuery query) {
+        // For now we only support instrumental mode via Suno
+        requestGeneration(query, MusicServiceFactory.GenerationMode.INSTRUMENTAL);
+    }
+
+    /** Cancel the currently running SwingWorker, if any. */
+    public void cancelCurrentOperation() {
+        if (currentWorker != null && !currentWorker.isDone()) {
+            currentWorker.cancel(true);
+        }
+    }
+
+    /** Open the most recently generated audio URL in the browser. */
+    public void openLastGeneratedAudio() {
+        GenerationResult result = model.getLastGenerationResult();
+        if (result == null || result.getAudioUrl() == null) {
+            return;
+        }
+        try {
+            java.awt.Desktop.getDesktop()
+                    .browse(java.net.URI.create(result.getAudioUrl()));
+        } catch (Exception e) {
+            fireEvent(MusicEvent.error(e));
+        }
     }
 }

@@ -1,96 +1,137 @@
 package org.example.view.panels;
 
-import org.example.controller.MainController;
-import org.example.model.domain.GenerationResult;
-import org.example.model.domain.UserQuery;
-import org.example.service.MusicServiceFactory.GenerationMode;
-
 import javax.swing.*;
 import java.awt.*;
-import java.net.URI;
+import java.awt.event.ActionListener;
 
 public class GenerationPanel extends JPanel {
 
-    private final MainController controller;
+    private final JTextField txtPrompt;
+    private final JTextField txtGenre;
+    private final JTextField txtMood;
+    private final JButton btnGenerate;
+    private final JButton btnCancel;
+    private final JLabel lblStatus;
+    private final JLabel lblLink; // clickable label
 
-    private final JTextField txtPrompt = new JTextField(20);
-    private final JTextField txtGenre = new JTextField(10);
-    private final JTextField txtMood = new JTextField(10);
-    private final JButton btnGenerate = new JButton("Generate Instrumental");
-    private final JLabel  lblResult = new JLabel("No generation yet.");
-    private String lastAudioUrl;   // NEW
-
-    public GenerationPanel(MainController controller) {
-        this.controller = controller;
-        initLayout();
-        initActions();
-    }
-
-    private void initLayout() {
+    public GenerationPanel() {
         setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
+        setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+
+        // Prompt
         add(new JLabel("Prompt:"), gbc);
+        txtPrompt = new JTextField(25);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         add(txtPrompt, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        // Genre
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
         add(new JLabel("Genre:"), gbc);
+
+        txtGenre = new JTextField(15);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         add(txtGenre, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        // Mood
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
         add(new JLabel("Mood:"), gbc);
+
+        txtMood = new JTextField(15);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         add(txtMood, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
-        add(btnGenerate, gbc);
+        // Buttons
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        btnGenerate = new JButton("Generate Instrumental");
+        btnCancel = new JButton("Cancel");
+        btnCancel.setEnabled(false);
 
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
-        add(lblResult, gbc);
+        buttonRow.add(btnGenerate);
+        buttonRow.add(btnCancel);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        add(buttonRow, gbc);
+
+        // Status + link
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+
+        JPanel statusRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        lblStatus = new JLabel("Status: idle");
+
+        lblLink = new JLabel(" ");
+        lblLink.setForeground(new Color(0, 102, 204));
+        lblLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        statusRow.add(lblStatus);
+        statusRow.add(new JLabel("|"));
+        statusRow.add(lblLink);
+
+        add(statusRow, gbc);
     }
 
-    private void initActions() {
-        btnGenerate.addActionListener(e -> {
-            UserQuery query = new UserQuery()
-                    .setText(txtPrompt.getText())
-                    .setGenre(txtGenre.getText())
-                    .setMood(txtMood.getText());
+    // --- Accessors ---
 
-            lastAudioUrl = null;
-            lblResult.setText("Starting generation...");
-            controller.requestGeneration(query, GenerationMode.INSTRUMENTAL);
-        });
+    public String getPrompt() {
+        return txtPrompt.getText();
+    }
 
-        // Optional: click the label to open the URL
-        lblResult.addMouseListener(new java.awt.event.MouseAdapter() {
+    public String getGenre() {
+        return txtGenre.getText();
+    }
+
+    public String getMood() {
+        return txtMood.getText();
+    }
+
+    // --- Button wiring ---
+
+    public void onGenerate(ActionListener listener) {
+        btnGenerate.addActionListener(listener);
+    }
+
+    public void onCancel(ActionListener listener) {
+        btnCancel.addActionListener(listener);
+    }
+
+    public void onOpenLink(ActionListener listener) {
+        lblLink.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (lastAudioUrl != null && Desktop.isDesktopSupported()) {
-                    try {
-                        Desktop.getDesktop().browse(new URI(lastAudioUrl));
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }
+                listener.actionPerformed(null);
             }
         });
     }
 
-    public void updateGenerationResult(Object payload) {
-        if (payload instanceof GenerationResult result) {
-            String status = result.getStatus();
-            String url = result.getAudioUrl();
-            lastAudioUrl = url;
+    public void setBusy(boolean busy) {
+        btnGenerate.setEnabled(!busy);
+        btnCancel.setEnabled(busy);
+    }
 
-            if (url != null && !url.isBlank()) {
-                lblResult.setText("<html>Status: " + status +
-                        " | <u>Click here to open audio</u></html>");
-            } else {
-                lblResult.setText("Status: " + status + " (no audio URL)");
-            }
-        }
+    // --- UI updates from controller ---
+
+    public void setStatusText(String status) {
+        lblStatus.setText("Status: " + status);
+    }
+
+    public void setLinkText(String text) {
+        lblLink.setText(text != null ? text : " ");
     }
 }
