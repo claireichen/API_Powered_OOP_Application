@@ -54,7 +54,7 @@ public final class MusicEvent {
     /** Human-readable error message, if this is an error event. */
     public String errorMessage() {
         if (payload instanceof Throwable t) {
-            return t.getMessage();
+            return t.getMessage() != null ? t.getMessage() : t.toString();
         }
         if (payload instanceof String s) {
             return s;

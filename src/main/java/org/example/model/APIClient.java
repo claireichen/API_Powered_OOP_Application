@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Properties;
+import java.time.Duration;
 
 public class APIClient {
 
@@ -24,8 +25,24 @@ public class APIClient {
     private Instant spotifyTokenExpiry; // epoch time when it expires
 
     private APIClient() {
-        this.httpClient = HttpClient.newHttpClient();
         this.config = loadConfig();
+        int timeoutMs = getInt("api.timeout.ms", 8000);
+
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(timeoutMs))
+                .build();
+    }
+
+    private int getInt(String key, int defaultValue) {
+        String raw = config.getProperty(key);
+        if (raw == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     public static synchronized APIClient getInstance() {
@@ -64,11 +81,28 @@ public class APIClient {
        ------------------------------------------------------------------ */
 
     public synchronized String getOrRefreshSpotifyToken() throws IOException, InterruptedException {
-        if (spotifyAccessToken != null && spotifyTokenExpiry != null) {
-            // add 30s safety margin
-            if (Instant.now().isBefore(spotifyTokenExpiry.minusSeconds(30))) {
-                return spotifyAccessToken;
-            }
+        if (spotifyAccessToken != null && Instant.now().isBefore(spotifyTokenExpiry)) {
+            return spotifyAccessToken;
+        }
+
+        // otherwise fetch a new one
+        String clientId = config.getProperty("spotify.clientId");
+        String clientSecret = config.getProperty("spotify.clientSecret");
+
+        String credentials = clientId + ":" + clientSecret;
+        String basic = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(config.getProperty("spotify.tokenUrl")))
+                .header("Authorization", "Basic " + basic)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials"))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IOException("Spotify token request failed: HTTP "
+                    + response.statusCode() + " – " + response.body());
         }
         requestSpotifyToken();
         return spotifyAccessToken;
@@ -158,15 +192,16 @@ public class APIClient {
        Generic GET/POST helpers
        ------------------------------------------------------------------ */
 
-    public HttpResponse<String> get(String url, String bearerToken)
+    public HttpResponse<String> get(String url, String authHeader)
             throws IOException, InterruptedException {
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .GET();
 
-        if (bearerToken != null && !bearerToken.isBlank()) {
-            builder.header("Authorization", "Bearer " + bearerToken);
+        if (authHeader != null && !authHeader.isBlank()) {
+            // Use the header value as-is (e.g., "Bearer <token>")
+            builder.header("Authorization", authHeader);
         }
 
         HttpRequest request = builder.build();
@@ -213,5 +248,49 @@ public class APIClient {
 
         HttpRequest request = builder.build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    public HttpResponse<String> getWithRetry(String url, String authHeader)
+            throws IOException, InterruptedException {
+
+        int maxRetries = getInt("api.maxRetries", 2);
+        long backoffMs = getInt("api.backoff.ms", 1000);
+
+        IOException last = null;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return get(url, authHeader);
+            } catch (IOException e) {
+                last = e;
+                if (attempt == maxRetries) {
+                    break;
+                }
+                Thread.sleep(backoffMs * (attempt + 1L));
+            }
+        }
+        throw last;
+    }
+
+    public HttpResponse<String> postJsonWithRetry(String url, String jsonBody, String apiKey)
+            throws IOException, InterruptedException {
+
+        int maxRetries = getInt("api.maxRetries", 2);
+        long backoffMs = getInt("api.backoff.ms", 1000);
+
+        IOException last = null;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return postJson(url, jsonBody, apiKey);
+            } catch (IOException e) {
+                last = e;
+                if (attempt == maxRetries) {
+                    break;
+                }
+                Thread.sleep(backoffMs * (attempt + 1L));
+            }
+        }
+        throw last;
     }
 }

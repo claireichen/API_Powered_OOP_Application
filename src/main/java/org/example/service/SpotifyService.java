@@ -34,17 +34,19 @@ public class SpotifyService {
 
         try {
             String accessToken = apiClient.getOrRefreshSpotifyToken();
-            String encodedQ = APIClient.urlEncode(query.getText());
-            String url = SPOTIFY_API_BASE + "/search?q=" + encodedQ + "&type=track&limit=10";
+            String encoded = APIClient.urlEncode(query.getText());
+            String url = SPOTIFY_API_BASE +
+                    "/search?offset=0&limit=10&query=" + encoded + "&type=track";
 
-            HttpResponse<String> response = apiClient.get(url, accessToken);
+            HttpResponse<String> response =
+                    apiClient.getWithRetry(url, "Bearer " + accessToken);
 
-            if (response.statusCode() != 200) {
-                throw new IOException("Spotify search failed: HTTP " + response.statusCode()
-                        + " - " + response.body());
-            }
-
+            int status = response.statusCode();
             String body = response.body();
+
+            if (status != 200) {
+                throw new IOException("Spotify search failed: HTTP " + status + " – " + body);
+            }
 
             // Debug: see what JSON we get (you can comment this out later)
             System.out.println("DEBUG raw JSON (first 400 chars):");
