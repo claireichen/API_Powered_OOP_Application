@@ -151,6 +151,11 @@ public class MainFrame extends JFrame implements MusicEventListener {
                 // payload assumed List<Track>, ResultPanel already knows how to display
                 resultPanel.setTracks(event.tracksPayload());
             }
+            case RECOMMENDATION_CANCELLED -> {
+                statusBar.setMessage("Recommendations cancelled.");
+                statusBar.setBusy(false);
+                searchPanel.setBusy(false);
+            }
             case GENERATION_STARTED -> {
                 statusBar.setMessage("Generating music...");
                 statusBar.setBusy(true);
@@ -164,12 +169,24 @@ public class MainFrame extends JFrame implements MusicEventListener {
                 generationPanel.setStatusText(event.status());
                 generationPanel.setLinkText("Click here to open audio");
             }
+            case GENERATION_CANCELLED -> {
+                statusBar.setMessage("Generation Cancelled.");
+                statusBar.setBusy(false);
+                generationPanel.setBusy(false);
+                generationPanel.setStatusText("cancelled");
+                generationPanel.setLinkText(null);
+            }
             case SESSION_SAVED -> statusBar.setMessage("Session saved.");
             case SESSION_LOADED -> statusBar.setMessage("Session loaded.");
             case ERROR -> {
                 statusBar.setBusy(false);
                 searchPanel.setBusy(false);
                 generationPanel.setBusy(false);
+
+                // New: reflect error in the generation panel too
+                generationPanel.setStatusText("error");
+                generationPanel.setLinkText(null);
+
                 statusBar.setMessage("Error: " + event.errorMessage());
                 JOptionPane.showMessageDialog(
                         this,

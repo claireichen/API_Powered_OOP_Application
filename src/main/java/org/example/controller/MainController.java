@@ -42,6 +42,10 @@ public class MainController extends MusicEventSource {
 
             @Override
             protected void done() {
+                if (isCancelled()) {
+                    fireEvent(MusicEvent.of(EventType.RECOMMENDATION_CANCELLED, null));
+                    return;
+                }
                 try {
                     List<Track> tracks = get();
                     model.setCurrentTracks(tracks);
@@ -62,20 +66,33 @@ public class MainController extends MusicEventSource {
         currentWorker = new SwingWorker<GenerationResult, Void>() {
             @Override
             protected GenerationResult doInBackground() throws Exception {
+                Thread.sleep(10_000);
+                if (isCancelled()) {
+                    return null;
+                }
                 return strategy.generate(query);
             }
 
             @Override
             protected void done() {
                 try {
+                    if (isCancelled()) {
+                        return;
+                    }
+
                     GenerationResult result = get();
-                    model.setLastGenerationResult(result);
-                    fireEvent(MusicEvent.of(EventType.GENERATION_COMPLETED, result));
+                    if (result != null) {
+                        model.setLastGenerationResult(result);
+                        fireEvent(MusicEvent.of(EventType.GENERATION_COMPLETED, result));
+                    } else {
+                        fireEvent(MusicEvent.error(new IllegalStateException("Generation cancelled or no result")));
+                    }
                 } catch (Exception e) {
                     fireEvent(MusicEvent.error(e));
                 }
             }
         };
+
         currentWorker.execute();
     }
 
@@ -159,6 +176,8 @@ public class MainController extends MusicEventSource {
     public void cancelCurrentOperation() {
         if (currentWorker != null && !currentWorker.isDone()) {
             currentWorker.cancel(true);
+
+            fireEvent(MusicEvent.of(EventType.GENERATION_CANCELLED, null));
         }
     }
 
