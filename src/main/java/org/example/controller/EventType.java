@@ -1,0 +1,11 @@
+package org.example.controller;
+
+public enum EventType {
+    RECOMMENDATION_STARTED,
+    RECOMMENDATION_COMPLETED,
+    GENERATION_STARTED,
+    GENERATION_COMPLETED,
+    SESSION_SAVED,
+    SESSION_LOADED,
+    ERROR
+}
