@@ -7,8 +7,8 @@
 ########## Spotify API ##########
 
 # Get these from https://developer.spotify.com/dashboard
-spotify.clientId=9a57fe88de944e51a80ce73a58aba462
-spotify.clientSecret=b14eb4a0ddee437aa1b6d3c605097692
+spotify.clientId=YOUR_SPOTIFY_CLIENT_ID_HERE
+spotify.clientSecret=YOUR_SPOTIFY_CLIENT_SECRET_HERE
 
 # Base URLs used by SpotifyService
 spotify.apiBaseUrl=https://api.spotify.com/v1
@@ -18,7 +18,7 @@ spotify.tokenUrl=https://accounts.spotify.com/api/token
 ########## MusicAPI / Suno ##########
 
 # Sign up at https://musicapi.ai and create an API key
-musicapi.apiKey=a5a0fdfd2f7cdb6985c45fc181cebba4
+musicapi.apiKey=YOUR_MUSICAPI_API_KEY_HERE
 
 # Base URL + paths used by SunoService
 musicapi.baseUrl=https://api.musicapi.ai
