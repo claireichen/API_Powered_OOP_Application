@@ -159,3 +159,58 @@ MusicServiceFactory creates the right strategy for a given mode:
 - createGenerationStrategy(GenerationMode mode)
 
 This keeps MainController simple and makes strategy wiring easy to change in one place.
+
+### Observer
+
+Custom event system used to keep the UI responsive and decoupled:
+- MusicEventSource - base class for firing events
+- MusicEventListener - interface implemented by views
+- MusicEvent - event object with type + optional payload
+- EventType - RECOMMENDATION_STARTED, RECOMMENDATION_COMPLETED, GENERATION_STARTED, GENERATION_COMPLETED, ERROR, etc.
+
+MainController fires events; MainFrame / ResultPanel / StatusBar listen and update the UI accordingly.
+
+### Singleton
+
+APIClient is a classic Singleton:
+- private static APIClient instance
+- public static synchronized APIClient getInstance()
+- Centralizes:
+  - HttpClient configuration (timeouts)
+  - Config loading (config.properties)
+  - Spotify token caching (access token + expiry)
+  - Retry helpers (getWithRetry, postJsonWithRetry)
+
+---
+
+## OOP Four Pillars
+
+### Encapsulation
+
+- Domain classes (UserQuery, Track, Session, GenerationResult) use private fields with getters/setters.
+- APIClient hides all HTTP/Spotify/MusicAPI details behind methods like:
+  - getOrRefreshSpotifyToken()
+  - getWithRetry(...)
+  - postJsonWithRetry(...)
+
+### Inheritance
+
+- AbstractRecommendationStrategy provides a base for common logic:
+  - Holds a SpotifyService reference.
+  - Shared helper methods.
+- Concrete strategies extend it for mood/genre/artist behaviors.
+
+### Polymorphism
+
+- RecommendationStrategy and MusicGenerationStrategy interfaces:
+  - The controller talks to them via the interface type.
+  - MusicServiceFactory can return any implementation without the caller knowing which one.
+- Overriden toString() in strategy classes helps with debugging/logging.
+
+### Abstraction
+
+- Service interfaces/abstract base classes hide implementation details:
+  - RecommendationStrategy / MusicGenerationStrategy
+  - JsonSessionRepository abstracts JSON persistence from the rest of the app.
+ 
+More detailed discussion of OOP usage in REPORT.md. 
