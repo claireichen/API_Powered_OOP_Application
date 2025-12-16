@@ -214,3 +214,126 @@ APIClient is a classic Singleton:
   - JsonSessionRepository abstracts JSON persistence from the rest of the app.
  
 More detailed discussion of OOP usage in REPORT.md. 
+
+---
+
+## Testing
+
+All tests are in src/test/java/org/example and use JUnit 5. 
+
+Currently 13 tests cover:
+- Singleton behavior
+  - APIClientSingletonTest
+- Factory & Strategy wiring
+  - MusicServiceFactoryTest - ensures correct strategy types are returned for each mode.
+- Strategy behavior (polymorphism)
+  - MoodRecommendationStrategyTest
+    - Uses a fake SpotifyService to assert that:
+      - Mood text is preferred when present.
+      - No real network calls are made in the test.
+- Spotify JSON parsing
+  - SpotifyServiceParsingTest - parses a sample JSON and checks fields in Track.
+- Recommendation routing
+  - SpotifyServiceRecommendationRoutingTest - tests that mood/genre/artist routing uses the correct UserQuery field.
+- Persistence
+  - JsonSessionRepositoryTest
+    - saveAndLoadRoundTrip - verifies session survives a write/read cycle
+    - loadOnEmptyFileReturnsNullSession - documents behavior for empty files.
+
+Run tests via IntelliJ or:
+```bash
+mvn test
+```
+
+--- 
+
+## Resilient API Behavior
+
+Musemix is designed to be gentle on APIs and resilient to failure:
+- Configurable timeouts
+  - APIClient  reads api.timeout.ms from config.properties.
+  - Configured via HttpClient.newBuilder().connectTimeout(...).
+- Retries with backoff
+  - getWithRetry(...) and postJsonWithRetry(...) use:
+    - api.maxRetries
+    - api.backoff.ms (with simple incremental backoff)
+  - Only IO-level failures are retried; HTTP 4xx/5xx are surfaced immediately.
+- Token caching
+  - Spotify access token + expiry are cached in APIClient.
+  - Avoids redundant token requests and handles expiration gracefully.
+- Error handling
+  - 401 / 403 / invalid credentials
+  - MusicAPI "credits exhausted" error
+  - Network failures/timeouts
+  - All are caught, surfaced via:
+    - Status bar text
+    - Swing error dialogs
+
+---
+
+## Folder Structure
+
+```bash
+src/
+  main/
+    java/
+      org/example/
+        controller/
+          MainController.java
+          EventType.java
+          MusicEvent.java
+          MusicEventListener.java
+          MusicEventSource.java
+        model/
+          APIClient.java
+          AppModel.java
+          domain/
+            UserQuery.java
+            Track.java
+            Session.java
+            GenerationResult.java
+          repository/
+            JsonSessionRepository.java
+          strategy/
+            AbstractRecommendationStrategy.java
+            RecommendationStrategy.java
+            MoodRecommendationStrategy.java
+            GenreRecommendationStrategy.java
+            ArtistSeedRecommendationStrategy.java
+            MusicGenerationStrategy.java
+            InstrumentalGenerationStrategy.java
+        service/
+          MusicServiceFactory.java
+          SpotifyService.java
+          SunoService.java   # MusicAPI.ai wrapper
+        view/
+          MainFrame.java
+          panels/
+            SearchPanel.java
+            ResultPanel.java
+            GenerationPanel.java
+            StatusBar.java
+        Main.java
+    resources/
+      config.properties.example
+      # config.properties (local only, in .gitignore)
+
+  test/
+    java/
+      org/example/
+        model/
+          APIClientSingletonTest.java
+          repository/
+            JsonSessionRepositoryTest.java
+          strategy/
+            MoodRecommendationStrategyTest.java
+        service/
+          MusicServiceFactoryTest.java
+          SpotifyServiceParsingTest.java
+          SpotifyServiceRecommendationRoutingTest.java
+```
+
+---
+
+### Demo
+
