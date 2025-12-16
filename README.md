@@ -149,4 +149,13 @@ Used for swappable recommendation and generation behavior.
   - ArtistSeedRecommendationStrategy
 - MusicGenerationStrategy (interface)
   - InstrumentalGenerationStrategy (delegates to MusicAPI.ai)
+
 The controller selects a strategy at runtime based on the chosen mode and calls either strategy.getRecommendations(query) or strategy.generate(query).
+
+### Factory
+
+MusicServiceFactory creates the right strategy for a given mode:
+- createRecommendationStrategy(RecommendationMode mode)
+- createGenerationStrategy(GenerationMode mode)
+
+This keeps MainController simple and makes strategy wiring easy to change in one place.
