@@ -80,3 +80,20 @@ api.backoff.ms=1000       # base backoff between retries in ms
 Do NOT commit config.properties - it's ignored by .gitignore.
 
 ### 3. Build & run
+
+From IntelliJ:
+1. Open the Maven project.
+2. Make sure Java 17+ SDK is configured.
+3. Run the Main class (org.example.Main).
+
+From the command line (optional):
+```bash
+mvn clean package
+# then run the generated jar or Main class from your IDE
+```
+
+---
+
+## Features
+
+### Recommendations tab
