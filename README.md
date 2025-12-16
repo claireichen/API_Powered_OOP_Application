@@ -97,3 +97,48 @@ mvn clean package
 ## Features
 
 ### Recommendations tab
+
+- Search by query/mood/artist.
+- Choose a mode:
+  - Mood - uses UserQuery.mood first,  otherwise falls back to text.
+  - Genre - uses UserQuery.genre when present.
+  - Artist - uses UserQuery.artist when present.
+- Displays tracks in a table (Title, Artist, Album).
+- Preview URL is stored in the Track model for potential future use.
+- Cancel button stops an in-flight request via SwingWorker.cancel(true).
+
+### Generation tab
+
+- Enter:
+  - Prompt - description of the music (e.g., "lofi chill")
+  - Optional Genre and Mood
+- Click Generate Instrumental to:
+  1. Create a generation task via MusicAPI.ai.
+  2. Poll the task until completed or timeout.
+- Status label shows:
+  - Starting generation...
+  - Polling task...
+  - Generation complete / timeout / friendly error.
+- Clickable link to open the generated audio URL in the browser.
+- Cancel button interrupts the polling worker.
+
+### Sessions
+
+- Save session (menu File -> Save Session...):
+  - Saves current UserQuery and List<Track> to a JSON file via JsonSessionRepository.
+- Load session (menu File -> Load Session...):
+  - Loads a previous session and repopulates the results table.
+
+### Status & Errors
+
+- StatusBar shows short messages (Ready, Fetching recommendations..., Generating music...).
+- API errors (401, 403, network failure, out-of-credits) show:
+  - A descriptive message in the status bar.
+  - A Swing error dialog with the exception message truncated for readability.
+
+---
+
+## Design Patterns
+
+### Strategy
+
