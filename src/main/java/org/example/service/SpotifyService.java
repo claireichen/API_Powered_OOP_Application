@@ -88,7 +88,7 @@ public class SpotifyService {
     // JSON parsing using Gson
     // -------------------------------------------------------------------------
 
-    List<Track> parseTracksFromSearch(String json) {
+    public List<Track> parseTracksFromSearch(String json) {
         List<Track> tracks = new ArrayList<>();
 
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
