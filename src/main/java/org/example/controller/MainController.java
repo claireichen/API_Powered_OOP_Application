@@ -11,6 +11,8 @@ import org.example.service.MusicServiceFactory;
 import org.example.service.MusicServiceFactory.GenerationMode;
 import org.example.service.MusicServiceFactory.RecommendationMode;
 import org.example.service.SessionPersistenceService;
+import org.example.service.SpotifyService;
+import org.example.service.SunoService;
 
 import javax.swing.*;
 import java.io.File;
@@ -21,13 +23,21 @@ public class MainController extends MusicEventSource {
 
     private final AppModel model;
     private final MusicServiceFactory factory;
-    private final SessionPersistenceService sessionService;
+    private final SpotifyService spotifyService;
+    private final SunoService sunoService;
+    private final SessionPersistenceService sessionPersistenceService;
     private javax.swing.SwingWorker<?, ?> currentWorker;
 
-    public MainController(AppModel model, MusicServiceFactory factory, SessionPersistenceService sessionService) {
+    public MainController(AppModel model,
+                          MusicServiceFactory factory,
+                          SpotifyService spotifyService,
+                          SunoService sunoService,
+                          SessionPersistenceService sessionPersistenceService) {
         this.model = model;
         this.factory = factory;
-        this.sessionService = sessionService;
+        this.spotifyService = spotifyService;
+        this.sunoService = sunoService;
+        this.sessionPersistenceService = sessionPersistenceService;
     }
 
     public void requestRecommendations(UserQuery query, RecommendationMode mode) {
@@ -97,9 +107,14 @@ public class MainController extends MusicEventSource {
     }
 
     public void saveCurrentSession(File file) {
-        Session session = new Session(model.getLastQuery(), model.getCurrentTracks());
+        if (file == null) {
+            return;
+        }
 
-        if (session.getQuery() == null || session.getTracks().isEmpty()) {
+        // Ensure we actually have something to save
+        if (model.getLastQuery() == null ||
+                model.getCurrentTracks() == null ||
+                model.getCurrentTracks().isEmpty()) {
             fireEvent(MusicEvent.error(
                     new IllegalStateException("Nothing to save: perform a search first.")));
             return;
@@ -108,47 +123,54 @@ public class MainController extends MusicEventSource {
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override
             protected Void doInBackground() throws Exception {
-                sessionService.save(session, file);
+                // Delegate to the persistence service
+                sessionPersistenceService.saveCurrentSession(model, file);
                 return null;
             }
 
             @Override
             protected void done() {
                 try {
-                    get(); // to rethrow exceptions if any
+                    get(); // rethrow exceptions if any
                     fireEvent(MusicEvent.of(EventType.SESSION_SAVED, file));
                 } catch (Exception e) {
                     fireEvent(MusicEvent.error(e));
                 }
             }
         };
+
         worker.execute();
     }
 
     public void loadSession(File file) {
-        SwingWorker<Session, Void> worker = new SwingWorker<>() {
+        if (file == null) {
+            return;
+        }
+
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override
-            protected Session doInBackground() throws Exception {
-                return sessionService.load(file);
+            protected Void doInBackground() throws Exception {
+                // Load into the existing model
+                sessionPersistenceService.loadSessionInto(model, file);
+                return null;
             }
 
             @Override
             protected void done() {
                 try {
-                    Session session = get();
-                    if (session != null) {
-                        model.setCurrentTracks(session.getTracks());
-                        model.setLastQuery(session.getQuery());
-                        fireEvent(MusicEvent.of(EventType.SESSION_LOADED, session));
-                    } else {
-                        fireEvent(MusicEvent.error(
-                                new IOException("Loaded session was null")));
-                    }
+                    get(); // rethrow exceptions if any
+
+                    // After load, model has new query + tracks
+                    fireEvent(MusicEvent.of(EventType.SESSION_LOADED, null));
+                    // Also fire RECOMMENDATION_COMPLETED so the table refreshes
+                    fireEvent(MusicEvent.of(EventType.RECOMMENDATION_COMPLETED,
+                            model.getCurrentTracks()));
                 } catch (Exception e) {
                     fireEvent(MusicEvent.error(e));
                 }
             }
         };
+
         worker.execute();
     }
 

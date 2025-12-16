@@ -1,26 +1,55 @@
 package org.example.service;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import org.example.model.AppModel;
 import org.example.model.domain.Session;
+import org.example.model.domain.Track;
+import org.example.model.domain.UserQuery;
+import org.example.model.repository.JsonSessionRepository;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 
 public class SessionPersistenceService {
 
-    private final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .create();
+    private final JsonSessionRepository repository;
 
-    public void save(Session session, File file) throws IOException {
-        try (Writer writer = new FileWriter(file)) {
-            gson.toJson(session, writer);
-        }
+    public SessionPersistenceService(JsonSessionRepository repository) {
+        this.repository = repository;
     }
 
-    public Session load(File file) throws IOException {
-        try (Reader reader = new FileReader(file)) {
-            return gson.fromJson(reader, Session.class);
+    /**
+     * Build a Session from the current AppModel and save it to the given file.
+     */
+    public void saveCurrentSession(AppModel model, File file) throws IOException {
+        if (file == null) {
+            return;
         }
+
+        UserQuery lastQuery = model.getLastQuery();
+        List<Track> tracks = model.getCurrentTracks();
+
+        // Use the existing constructor: Session(UserQuery, List<Track>)
+        Session session = new Session(lastQuery, tracks);
+
+        repository.save(session, file);
+    }
+
+
+    /**
+     * Load a Session from file and apply it to the given AppModel.
+     */
+    public void loadSessionInto(AppModel model, File file) throws IOException {
+        if (file == null) {
+            return;
+        }
+
+        Session session = repository.load(file);
+        if (session == null) {
+            return;
+        }
+
+        model.setLastQuery(session.getQuery());
+        model.setCurrentTracks(session.getTracks());
     }
 }
