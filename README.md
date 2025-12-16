@@ -142,3 +142,11 @@ mvn clean package
 
 ### Strategy
 
+Used for swappable recommendation and generation behavior.
+- RecommendationStrategy (interface)
+  - MoodRecommendationStrategy
+  - GenreRecommendationStrategy
+  - ArtistSeedRecommendationStrategy
+- MusicGenerationStrategy (interface)
+  - InstrumentalGenerationStrategy (delegates to MusicAPI.ai)
+The controller selects a strategy at runtime based on the chosen mode and calls either strategy.getRecommendations(query) or strategy.generate(query).
